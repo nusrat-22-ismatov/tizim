@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel Hisobot Tizimi</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0a0a0f;--sur:#111118;--sur2:#1a1a24;--brd:#2a2a3a;--acc:#7c6fff;--red:#ff6b6b;--grn:#43e97b;--txt:#e8e8f0;--mut:#6b6b85;--gld:#ffd166}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:'DM Mono',monospace;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(124,111,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,111,255,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.wrap{max-width:1400px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+
+header{border-bottom:1px solid var(--brd);padding:18px 0;background:rgba(10,10,15,.97);position:sticky;top:0;z-index:100}
+.hdr{display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;font-family:'Syne',sans-serif;font-weight:800;font-size:1.25rem}
+.logo-ic{width:34px;height:34px;background:linear-gradient(135deg,var(--acc),var(--red));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px}
+.logo em{color:var(--acc);font-style:normal}
+.dot-badge{display:flex;align-items:center;gap:7px;padding:5px 13px;background:var(--sur);border:1px solid var(--brd);border-radius:100px;font-size:.73rem;color:var(--mut)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--grn);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+main{padding:44px 0 80px}
+
+/* UPLOAD */
+.up-wrap{margin-bottom:44px}
+
+/* Key fix: label wraps everything so entire zone is clickable */
+.up-label{display:block;cursor:pointer}
+.up-zone{border:2px dashed var(--brd);border-radius:20px;padding:56px 40px;text-align:center;transition:all .25s;background:var(--sur);position:relative;overflow:hidden}
+.up-zone::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(124,111,255,.08),transparent 60%);opacity:0;transition:opacity .25s}
+.up-label:hover .up-zone,.up-zone.drag-over{border-color:var(--acc);transform:translateY(-2px)}
+.up-label:hover .up-zone::before,.up-zone.drag-over::before{opacity:1}
+.up-zone.drag-over{background:rgba(124,111,255,.06)}
+.up-ic{font-size:52px;margin-bottom:14px;display:block;filter:drop-shadow(0 0 18px rgba(124,111,255,.4))}
+.up-title{font-family:'Syne',sans-serif;font-size:1.35rem;font-weight:800;margin-bottom:7px}
+.up-sub{color:var(--mut);font-size:.84rem;margin-bottom:22px}
+.up-btn{display:inline-flex;align-items:center;gap:7px;padding:11px 26px;background:linear-gradient(135deg,var(--acc),#5a4fd8);color:#fff;border:none;border-radius:11px;font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem;cursor:pointer;pointer-events:none}
+.fmt-tags{display:flex;justify-content:center;gap:7px;margin-top:18px}
+.fmt-tag{padding:3px 9px;background:var(--sur2);border:1px solid var(--brd);border-radius:5px;font-size:.7rem;color:var(--mut)}
+#fi{display:none}
+
+/* LOADING */
+#loading{display:none;text-align:center;padding:56px}
+#loading.on{display:block}
+.spin{width:44px;height:44px;border:3px solid var(--brd);border-top-color:var(--acc);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ERROR */
+#errBox{display:none;padding:14px 18px;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);border-radius:11px;color:var(--red);font-size:.85rem;margin-bottom:22px}
+#errBox.on{display:block}
+
+/* DASHBOARD */
+#dash{display:none}
+#dash.on{display:block;animation:fadeUp .45s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+.file-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--sur);border:1px solid var(--brd);border-radius:13px;margin-bottom:28px}
+.fname{font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem}
+.fname em{color:var(--acc);font-style:normal}
+.rst-btn{padding:7px 15px;background:transparent;border:1px solid var(--brd);border-radius:8px;color:var(--mut);font-family:'DM Mono',monospace;font-size:.78rem;cursor:pointer;transition:all .2s}
+.rst-btn:hover{border-color:var(--red);color:var(--red)}
+
+.tabs{display:flex;gap:4px;margin-bottom:28px;background:var(--sur);padding:5px;border-radius:13px;border:1px solid var(--brd);overflow-x:auto}
+.tab{padding:9px 18px;border-radius:9px;cursor:pointer;font-size:.83rem;white-space:nowrap;transition:all .18s;color:var(--mut);border:none;background:transparent;font-family:'DM Mono',monospace}
+.tab.active{background:var(--acc);color:#fff}
+.tab:hover:not(.active){color:var(--txt);background:var(--sur2)}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:28px}
+.stat-card{background:var(--sur);border:1px solid var(--brd);border-radius:15px;padding:18px 22px;transition:transform .18s,border-color .18s}
+.stat-card:hover{transform:translateY(-2px);border-color:var(--acc)}
+.stat-col{font-size:.68rem;color:var(--mut);margin-bottom:8px;text-transform:uppercase;letter-spacing:.1em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srows{display:flex;flex-direction:column;gap:5px}
+.srow{display:flex;justify-content:space-between;align-items:center}
+.slbl{font-size:.73rem;color:var(--mut)}
+.sval{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700}
+.sval.s{color:var(--acc)}.sval.mx{color:var(--grn)}.sval.mn{color:var(--gld)}
+
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:28px}
+@media(max-width:860px){.charts-row{grid-template-columns:1fr}}
+.chart-card{background:var(--sur);border:1px solid var(--brd);border-radius:15px;padding:22px}
+.ctitle{font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.ctitle::before{content:'';width:4px;height:16px;background:var(--acc);border-radius:2px}
+.cwrap{position:relative;height:250px}
+
+.tbl-sec{background:var(--sur);border:1px solid var(--brd);border-radius:15px;overflow:hidden}
+.tbl-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--brd)}
+.ttitle{font-family:'Syne',sans-serif;font-weight:700;display:flex;align-items:center;gap:8px}
+.ttitle::before{content:'';width:4px;height:16px;background:var(--red);border-radius:2px}
+.rcnt{font-size:.72rem;color:var(--mut);background:var(--sur2);padding:4px 10px;border-radius:100px;border:1px solid var(--brd)}
+.tscroll{overflow-x:auto;max-height:460px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+thead{position:sticky;top:0;z-index:5}
+thead th{background:var(--sur2);padding:11px 14px;text-align:left;font-size:.7rem;color:var(--mut);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--brd);white-space:nowrap}
+tbody tr{border-bottom:1px solid rgba(42,42,58,.45);transition:background .13s}
+tbody tr:hover{background:var(--sur2)}
+tbody td{padding:10px 14px;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis}
+td.num{color:var(--acc);font-weight:500;text-align:right}
+tbody tr:nth-child(even){background:rgba(26,26,36,.3)}
+tbody tr:nth-child(even):hover{background:var(--sur2)}
+.nodata{text-align:center;padding:50px;color:var(--mut)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--sur)}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--acc)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="hdr">
+      <div class="logo">
+        <div class="logo-ic">📊</div>
+        Excel <em>Hisobot</em> Tizimi
+      </div>
+      <div class="dot-badge"><div class="dot"></div>Tizim ishlamoqda</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <div class="up-wrap" id="upSec">
+      <!-- label wraps file input: clicking anywhere opens dialog -->
+      <label class="up-label" for="fi">
+        <div class="up-zone" id="dropZone">
+          <span class="up-ic">📂</span>
+          <div class="up-title">Excel faylni yuklang</div>
+          <div class="up-sub">Faylni bu yerga tashlang yoki ustiga bosing</div>
+          <div class="up-btn">📁 Fayl tanlash</div>
+          <div class="fmt-tags">
+            <span class="fmt-tag">.xlsx</span>
+            <span class="fmt-tag">.xls</span>
+            <span class="fmt-tag">.csv</span>
+          </div>
+        </div>
+      </label>
+      <input type="file" id="fi" accept=".xlsx,.xls,.csv">
+    </div>
+
+    <div id="loading"><div class="spin"></div><div style="color:var(--mut);font-size:.88rem">Tahlil qilinmoqda...</div></div>
+    <div id="errBox"></div>
+
+    <div id="dash">
+      <div class="file-bar">
+        <div class="fname">📄 <em id="fname">fayl.xlsx</em></div>
+        <button class="rst-btn" onclick="resetAll()">✕ Yangi fayl</button>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div id="content"></div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+var gData=null, gSheet=null, gCharts={};
+var PAL=['#7c6fff','#ff6b6b','#43e97b','#ffd166','#06d6a0','#ef476f','#118ab2','#ffc6ff','#caffbf','#fdffb6'];
+
+// Drag & drop
+var dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag-over')});
+dz.addEventListener('dragleave',function(){dz.classList.remove('drag-over')});
+dz.addEventListener('drop',function(e){
+  e.preventDefault();dz.classList.remove('drag-over');
+  var f=e.dataTransfer.files[0];
+  if(f) loadFile(f);
+});
+
+// File input change
+document.getElementById('fi').addEventListener('change',function(e){
+  if(this.files && this.files[0]) loadFile(this.files[0]);
+  this.value=''; // reset so same file can be re-selected
+});
+
+function loadFile(file){
+  var ext=file.name.split('.').pop().toLowerCase();
+  if(['xlsx','xls','csv'].indexOf(ext)<0){
+    showErr("Faqat .xlsx, .xls, .csv formatlar qabul qilinadi");return;
+  }
+  showLoad();
+  var reader=new FileReader();
+  reader.onerror=function(){hideLoad();showErr("Faylni o'qib bo'lmadi. Qayta urinib ko'ring.")};
+  reader.onload=function(e){
+    try{
+      var arr=new Uint8Array(e.target.result);
+      var wb=XLSX.read(arr,{type:'array',cellDates:true});
+      var sheets={};
+      wb.SheetNames.forEach(function(nm){
+        var raw=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,defval:null,raw:false});
+        if(raw.length<2)return;
+        var cols=raw[0].map(function(c,i){return c!=null?String(c):'Ustun_'+(i+1)});
+        var rows=raw.slice(1).filter(function(r){return r.some(function(v){return v!=null})});
+        sheets[nm]=buildSheet(cols,rows);
+      });
+      if(!Object.keys(sheets).length){hideLoad();showErr("Fayl bo'sh yoki o'qib bo'lmadi");return;}
+      gData={filename:file.name,sheets:sheets,names:Object.keys(sheets)};
+      hideLoad();
+      showDash();
+    }catch(err){hideLoad();showErr("Xatolik: "+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function buildSheet(cols,rows){
+  var numIdx=[];
+  cols.forEach(function(_,ci){
+    var vals=rows.map(function(r){return parseFloat(r[ci])}).filter(function(v){return !isNaN(v)});
+    if(vals.length>rows.length*0.35) numIdx.push(ci);
+  });
+  var stats={};
+  numIdx.forEach(function(ci){
+    var vals=rows.map(function(r){return parseFloat(r[ci])}).filter(function(v){return !isNaN(v)});
+    if(!vals.length)return;
+    var sum=vals.reduce(function(a,b){return a+b},0);
+    stats[cols[ci]]={sum:r2(sum),mean:r2(sum/vals.length),min:r2(Math.min.apply(null,vals)),max:r2(Math.max.apply(null,vals)),count:vals.length};
+  });
+  var cd=null;
+  var txi=cols.findIndex(function(_,i){return numIdx.indexOf(i)<0});
+  if(txi>=0&&numIdx.length){
+    var ni=numIdx[0],grp={};
+    rows.forEach(function(r){
+      var lbl=String(r[txi]!=null?r[txi]:'?').slice(0,22);
+      var v=parseFloat(r[ni]);
+      if(!isNaN(v))grp[lbl]=(grp[lbl]||0)+v;
+    });
+    var ent=Object.entries(grp).slice(0,14);
+    cd={labels:ent.map(function(e){return e[0]}),values:ent.map(function(e){return r2(e[1])}),lc:cols[txi],vc:cols[ni]};
+  }else if(numIdx.length&&rows.length<=60){
+    var ni2=numIdx[0];
+    cd={labels:rows.map(function(_,i){return String(i+1)}),values:rows.map(function(r){var v=parseFloat(r[ni2]);return isNaN(v)?0:r2(v)}),lc:'Qator',vc:cols[ni2]};
+  }
+  return{cols:cols,rows:rows.slice(0,100),total:rows.length,stats:stats,cd:cd,numIdx:numIdx};
+}
+
+function r2(n){return Math.round(n*100)/100}
+function fn(n){
+  if(typeof n!=='number')return n;
+  return n.toLocaleString('uz-UZ',{maximumFractionDigits:2});
+}
+
+function showLoad(){document.getElementById('upSec').style.display='none';document.getElementById('loading').classList.add('on')}
+function hideLoad(){document.getElementById('loading').classList.remove('on')}
+function showErr(m){
+  document.getElementById('upSec').style.display='block';
+  var b=document.getElementById('errBox');b.textContent='⚠️ '+m;b.classList.add('on');
+}
+
+function showDash(){
+  document.getElementById('dash').classList.add('on');
+  document.getElementById('fname').textContent=gData.filename;
+  var tabs=document.getElementById('tabs');tabs.innerHTML='';
+  gData.names.forEach(function(nm,i){
+    var b=document.createElement('button');
+    b.className='tab'+(i===0?' active':'');
+    b.textContent=nm;
+    b.onclick=function(){switchSheet(nm,b)};
+    tabs.appendChild(b);
+  });
+  gSheet=gData.names[0];
+  render(gData.sheets[gSheet]);
+}
+
+function switchSheet(nm,btn){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
+  btn.classList.add('active');
+  gSheet=nm;
+  Object.values(gCharts).forEach(function(c){c.destroy()});
+  gCharts={};
+  render(gData.sheets[nm]);
+}
+
+function render(s){
+  var c=document.getElementById('content');c.innerHTML='';
+
+  // Stats
+  if(Object.keys(s.stats).length){
+    var g=document.createElement('div');g.className='stats-grid';
+    Object.entries(s.stats).forEach(function(kv){
+      var col=kv[0],st=kv[1];
+      g.innerHTML+='<div class="stat-card"><div class="stat-col">'+col+'</div><div class="srows">'+
+        '<div class="srow"><span class="slbl">Jami</span><span class="sval s">'+fn(st.sum)+'</span></div>'+
+        '<div class="srow"><span class="slbl">O\'rtacha</span><span class="sval">'+fn(st.mean)+'</span></div>'+
+        '<div class="srow"><span class="slbl">Maksimum</span><span class="sval mx">'+fn(st.max)+'</span></div>'+
+        '<div class="srow"><span class="slbl">Minimum</span><span class="sval mn">'+fn(st.min)+'</span></div>'+
+        '<div class="srow"><span class="slbl">Yozuvlar</span><span class="sval">'+st.count+'</span></div>'+
+        '</div></div>';
+    });
+    c.appendChild(g);
+  }
+
+  // Charts
+  if(s.cd){
+    var row=document.createElement('div');row.className='charts-row';
+    var clrs=s.cd.labels.map(function(_,i){return PAL[i%PAL.length]});
+    row.innerHTML='<div class="chart-card"><div class="ctitle">'+s.cd.vc+' — '+s.cd.lc+' bo\'yicha</div><div class="cwrap"><canvas id="bC"></canvas></div></div>'+
+      '<div class="chart-card"><div class="ctitle">Taqsimot</div><div class="cwrap"><canvas id="dC"></canvas></div></div>';
+    c.appendChild(row);
+    setTimeout(function(){
+      gCharts.b=new Chart(document.getElementById('bC'),{
+        type:'bar',
+        data:{labels:s.cd.labels,datasets:[{label:s.cd.vc,data:s.cd.values,backgroundColor:clrs,borderRadius:5,borderSkipped:false}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+          scales:{x:{ticks:{color:'#6b6b85',font:{size:10}},grid:{color:'rgba(42,42,58,0.5)'}},
+                  y:{ticks:{color:'#6b6b85',font:{size:10}},grid:{color:'rgba(42,42,58,0.5)'}}}}
+      });
+      gCharts.d=new Chart(document.getElementById('dC'),{
+        type:'doughnut',
+        data:{labels:s.cd.labels,datasets:[{data:s.cd.values,backgroundColor:clrs,borderWidth:2,borderColor:'#111118'}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+          plugins:{legend:{position:'bottom',labels:{color:'#6b6b85',font:{size:10},padding:8}}}}
+      });
+    },80);
+  }
+
+  // Table
+  var ts=document.createElement('div');ts.className='tbl-sec';
+  ts.innerHTML='<div class="tbl-hdr"><div class="ttitle">Ma\'lumotlar jadvali</div><span class="rcnt">Jami: '+s.total+' qator</span></div>'+
+    '<div class="tscroll"><table><thead><tr>'+s.cols.map(function(col){return'<th>'+col+'</th>'}).join('')+'</tr></thead><tbody id="tb"></tbody></table></div>';
+  c.appendChild(ts);
+  var tb=ts.querySelector('#tb');
+  if(!s.rows.length){
+    tb.innerHTML='<tr><td colspan="'+s.cols.length+'" class="nodata">Ma\'lumot yo\'q</td></tr>';
+  }else{
+    s.rows.forEach(function(row){
+      var tr=document.createElement('tr');
+      tr.innerHTML=row.map(function(cell,i){
+        var isN=s.numIdx.indexOf(i)>=0;
+        var v=cell==null?'—':isN?fn(parseFloat(cell)):cell;
+        return'<td class="'+(isN?'num':'')+'">'+v+'</td>';
+      }).join('');
+      tb.appendChild(tr);
+    });
+  }
+}
+
+function resetAll(){
+  Object.values(gCharts).forEach(function(c){c.destroy()});
+  gCharts={};gData=null;gSheet=null;
+  document.getElementById('dash').classList.remove('on');
+  document.getElementById('upSec').style.display='block';
+  document.getElementById('errBox').classList.remove('on');
+}
+</script>
+</body>
+</html>
